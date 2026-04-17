@@ -20,7 +20,6 @@ grid = np.random.randint(2, size = (N,N))
 
 
 # CREAMOS EL ENTORNO PYGAME PARA VISUALIZAR EL JUEGO
-
 pygame.init() 
 
 # Configuracion de la ventana

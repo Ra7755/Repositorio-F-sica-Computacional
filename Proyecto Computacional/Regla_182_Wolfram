@@ -1,0 +1,123 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import ListedColormap
+#matplotlib inline
+
+#AUTOMATE GENERACION 0
+
+L = 400
+X = np.zeros(L)
+X[:int(L/2)] = 1
+np.random.shuffle(X)
+
+#DEFINIMOS LA REGLA 182 COMO FUNCION DE PROBABILIDADES
+
+def random_rule_182(X:float,N:int,L:int):
+    """
+    rule_182 aplica la regla 182 de Wolfram durante N generaciones pero considera 
+    una regla probabilística para generar cada nueva celda central
+
+    :param X: autómata
+    :param N: número de generaciones 
+    :param L: largo del autómata celular unidimensional  
+    :return: autómata celular en la generación N, X_N
+    """ 
+    X_N = np.zeros([N,L])
+    X_N[0][:] = X
+    
+    # Definimos el set de probabilidades
+    P = np.array([0.503, 0.863, 0.6, 0.6, 0.653, 0.733, 0.57, 0.94])
+    #P = 0.57*np.ones(8)
+    for gen in range(1,N):
+        for i in range(1,L-1):
+            Xleft = X_N[gen-1][i-1]
+            Xright = X_N[gen-1][i+1]
+            Xcenter = X_N[gen-1][i]
+            Prob_iteration = np.random.rand(1,8)
+            Prob = Prob_iteration[0][:]
+            if Xleft==1 and Xcenter==1 and Xright ==1 and Prob[0]<P[0]:
+                X_N[gen][i]=1
+            if Xleft==1 and Xcenter==1 and Xright ==0 and Prob[1]<P[1]:
+                X_N[gen][i]=0
+            if Xleft==1 and Xcenter==0 and Xright ==1 and Prob[2]<P[2]:
+                X_N[gen][i]=1
+            if Xleft==1 and Xcenter==0 and Xright ==0 and Prob[3]<P[3]:
+                X_N[gen][i]=1
+            if Xleft==0 and Xcenter==1 and Xright ==1 and Prob[4]<P[4]:
+                X_N[gen][i]=0
+            if Xleft==0 and Xcenter==1 and Xright ==0 and Prob[5]<P[5]:
+                X_N[gen][i]=1
+            if Xleft==0 and Xcenter==0 and Xright ==1 and Prob[6]<P[6]:
+                X_N[gen][i]=1
+            if Xleft==0 and Xcenter==0 and Xright ==0 and Prob[7]<P[7]:
+                X_N[gen][i]=0
+    return X_N
+
+
+# ESTA VERSION  DE LA FUNCION INTRODUCE UN PARÁMETRO DE RUIDO ESTOCÁSTICO ($p_{error}$)
+# ESTO PERMITE ANALIZAR COMO AL REGLA 182 SE DEGRADA ANTE PERTURBACIONES ALEATORIAS
+# PERMITE VER LA ESTABILIDAD DEL PATRON
+
+def random_rule_182_v2(X, N, L, p_error=0.1):
+    """
+    Aplica la Regla 182 pero con una probabilidad de 'error' o ruido.
+    Si p_error = 0, es el autómata puro. 
+    Si p_error = 0.5, es puro ruido aleatorio.
+    """
+    X_N = np.zeros([N, L])
+    X_N[0][:] = X
+    
+    for gen in range(1, N):
+        for i in range(1, L - 1):
+            Xleft = X_N[gen-1][i-1]
+            Xcenter = X_N[gen-1][i]
+            Xright = X_N[gen-1][i+1]
+            
+            # Determinamos cuál sería el resultado de la Regla 182 pura (10110110)
+            if [Xleft, Xcenter, Xright] == [1,1,1]: res = 1
+            elif [Xleft, Xcenter, Xright] == [1,1,0]: res = 0
+            elif [Xleft, Xcenter, Xright] == [1,0,1]: res = 1
+            elif [Xleft, Xcenter, Xright] == [1,0,0]: res = 1
+            elif [Xleft, Xcenter, Xright] == [0,1,1]: res = 0
+            elif [Xleft, Xcenter, Xright] == [0,1,0]: res = 1
+            elif [Xleft, Xcenter, Xright] == [0,0,1]: res = 1
+            else: res = 0 # Caso [0,0,0]
+            
+            # APLICAMOS RUIDO: con probabilidad p_error, invertimos el resultado
+            if np.random.rand() < p_error:
+                X_N[gen][i] = 1 - res  # Invertimos (0->1 o 1->0)
+            else:
+                X_N[gen][i] = res
+                
+    return X_N
+
+# --- PARA GRAFICAR Y COMPARAR ---
+L = 400
+gen = 200
+# Semilla inicial aleatoria (como ya tenías)
+X_init = np.zeros(L)
+X_init[:L//2] = 1
+np.random.shuffle(X_init)
+
+# Ejecutamos con un 5% de ruido para ver estructuras interesantes
+X_N = random_rule_182_v2(X_init, gen, L, p_error=0.05)
+
+plt.figure(figsize=(10, 6))
+plt.imshow(X_N, cmap='binary', interpolation='nearest')
+plt.title("Regla 182 Probabilística (Ruido = 5%)")
+plt.axis('off')
+plt.show()
+
+
+# GRAFICAMOS
+gen = 200
+X_N = random_rule_182(X,gen,L)
+
+# Parámetros para graficar en dos colores
+cmapmine = ListedColormap(['w', 'k'], N=2)
+
+# Plot matrix, usamos np.flipud() para invertir el orden de las filas
+plt.imshow(np.flipud(X_N), cmap=cmapmine, vmin=0, vmax=1)
+ax = plt.gca()
+ax.set_axis_off()
+plt.show()

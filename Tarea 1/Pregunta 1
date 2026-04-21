@@ -1,0 +1,156 @@
+#---------------------
+# PREGUNTA 1
+# --------------------
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.linalg import expm
+import time
+
+#---------------------
+# Inciso (b)
+#---------------------
+
+# Definimos las matruces de Pauli
+
+sx = np.array([[0,1],
+               [1,0]])
+sz = np.array([[1,0],
+               [0,-1]])
+# Matriz identidad
+I = np.array([[1,0],
+             [0,1]])
+
+
+# Creamos una funcion para los operadores en j
+
+def sigma_j(op, j, N):
+    #Generamos un producto tensorial
+    res = 1
+    for i in range(1, N+1):
+        if i == j :
+            res = np.kron(res, op)
+        else:
+            res = np.kron(res, I)
+    return res
+
+# Contruimos el hamiltoniano completo
+
+def construccion_hamiltoniano(N, J, B):
+    dim = 2**N #Resultado del inciso A 
+
+    H = np.zeros((dim,dim), dtype=complex)
+
+    # Iteracion J entre espines vecinos
+    for i in range(1, N):
+        term_x = np.dot(sigma_j(sx, i, N), sigma_j(sx, i+1, N))
+        H+= J * term_x
+
+    # Término del campo transversal (B)
+    for i in range(1, N+1):
+        H+= B* sigma_j(sz, i, N)
+
+    return H
+
+# ruebas para saber si el código esta funcionando bien
+#N_test = 3
+#H = construccion_hamiltoniano(N_test, J=1.0, B=0.5)
+
+#es_hermitica = np.allclose(H, H.conj().T)
+#print(f"¿Es la matriz hermítica?: {es_hermitica}")
+
+# Ejemplo de prueba rápida para N=2, J=0, B=1
+#H_test = construccion_hamiltoniano(N=2, J=0, B=1)
+#energias = np.linalg.eigvalsh(H_test)
+#print(f"Energías con J=0: {energias}") 
+
+
+#---------------------
+# Inciso (c)
+#---------------------
+
+# Configuracion de parámetros 
+
+N = 4    
+dt = 0.1
+tiempos = np.arange(0, 10, dt)
+regimenes = {'B/J << 1': (1.0, 0.1), 'B/J = 1': (1.0, 1.0), 'B/J >> 1': (0.1, 1.0)}
+
+# Estado inicial
+
+down = np.array([0, 1])
+psi_0 = down
+for _ in range(N - 1):
+    psi_0 = np.kron(psi_0, down) #(np.kron = producto tensorial)
+
+plt.figure(figsize=(10, 6))
+
+for nombre, (J, B) in regimenes.items():
+    H = construccion_hamiltoniano(N, J, B)
+    probs = []
+
+    # Evolucion paso a paso
+    U_dt = expm(-1j * H * dt)
+    psi_t = psi_0.copy()
+    
+    for t in tiempos:
+        #Calculamos probabilidad de retorno
+        p_t = np.abs(np.vdot(psi_0, psi_t))**2
+        probs.append(p_t)
+
+        # Evoluciona al sigueinte paso
+
+        psi_t = U_dt @ psi_t # @ multiplicador de matrices por vector
+
+    plt.plot(tiempos, probs, label=nombre)
+
+plt.xlabel("Tiempo")
+plt.ylabel("Probabilidad de retorno P(t)")
+plt.legend()
+plt.title("Evolución de la probabilidad de retorno")
+plt.show()
+
+
+#---------------------
+# Inciso (d)
+#---------------------
+
+valores_N =[4,5,6,7,8]
+tiempos_promedios = []
+iteraciones = 10 # Para promediar, ya que no siemrpe se tarda los mismo
+
+print(f"{'N':<5} | {'Tiempo promedio (s)':<20}")
+print("-" * 30)
+
+for N in valores_N:
+    tiempos_n =[]
+
+    for _ in range(iteraciones):
+        t_inicio = time.time()
+
+        #Construccion del hamiltoniano
+        H = construccion_hamiltoniano(N, 1.0, 1.0)
+
+        # Diagonalizamos
+        autovalores, autovectores = np.linalg.eigh(H)
+
+        t_fin = time.time()
+        tiempos_n.append(t_fin - t_inicio)
+
+    promedio = np.mean(tiempos_n)
+    tiempos_promedios.append(promedio)
+    print(f"{N:<5} | {promedio:<20.6f}")
+
+
+#---------------------
+# Inciso (e)
+#---------------------
+plt.figure(figsize=(8,5))
+plt.plot(valores_N, tiempos_promedios, "o-", color="darkorange", label = "Tiempo de ejecición")
+
+plt.title("Tiempo de construcción y diagonalización vs N")
+plt.xlabel("Número de espines (N)")
+plt.ylabel("Tiempo promedio (s)")
+plt.grid(True, linestyle="--", alpha=0.7)
+plt.legend()
+plt.show()

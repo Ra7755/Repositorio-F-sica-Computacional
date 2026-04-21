@@ -1,0 +1,110 @@
+#---------------------
+# PREGUNTA 4
+# --------------------
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+from matplotlib.widgets import Slider
+
+# --- 1. DEFINICION DE PARAMETROS --- 
+N = 125
+m = 3.32e-27  # Masa H2 
+Kb = 1.380649e-23  
+L_inicial = 10e-6  # 10 micrometros 
+dt = 10e-12  # 1 ps 
+T_objetivo = 300.0  
+
+# --- 2. INICIALIZACION --- 
+# Posiciones en red cubica para evitar superposiciones 
+
+n_side = int(np.ceil(N**(1/3)))
+x_coord = np.linspace(0.1*L_inicial, 0.9*L_inicial, n_side)
+pos_setup = np.array([[i, j, k] for i in x_coord for j in x_coord for k in x_coord])
+pos = pos_setup[:N].copy()
+
+# Velocidades iniciales (Maxwell-Boltzmann aproximado) 
+vel = np.random.randn(N, 3)
+v_sq_mean = np.mean(np.sum(vel**2, axis=1))
+scale = np.sqrt(3 * Kb * T_objetivo / (m * v_sq_mean))
+vel *= scale
+
+# Historiales para graficos 
+historial_T = []
+historial_P = []
+
+# --- 3. CONFIGURACION DE LA FIGURA Y WIDGETS --- 
+fig = plt.figure(figsize=(15, 7))
+ax_sim = fig.add_subplot(121, projection='3d')
+ax_temp = fig.add_subplot(222)
+ax_pres = fig.add_subplot(224)
+
+plt.subplots_adjust(bottom=0.2, left=0.1)
+
+# Sliders 
+ax_slider_t = plt.axes([0.15, 0.05, 0.3, 0.03])
+slider_t = Slider(ax_slider_t, 'Temp [K]', 10, 1000, valinit=T_objetivo)
+
+scat = ax_sim.scatter(pos[:,0], pos[:,1], pos[:,2], c='skyblue', edgecolors='purple')
+
+# --- 4. INTEGRACION Y COLISIONES --- 
+def update(frame):
+    global pos, vel
+    
+    L_actual = L_inicial # Podrías vincularlo a otro slider
+    
+    # Actualizar posiciones 
+    pos += vel * dt
+    
+    impulso_total = 0
+    
+    # Colisiones con paredes 
+    for i in range(3):
+        # Pared superior
+        up = pos[:, i] > L_actual
+        if np.any(up):
+            impulso_total += np.sum(2 * m * np.abs(vel[up, i]))
+            pos[up, i] = 2 * L_actual - pos[up, i]
+            vel[up, i] *= -1
+            
+        # Pared inferior
+        low = pos[:, i] < 0
+        if np.any(low): 
+            impulso_total += np.sum(2 * m * np.abs(vel[low, i]))
+            pos[low, i] = -pos[low, i]
+            vel[low, i] *= -1
+
+    # Termostato simple: Ajustar a la temperatura del Slider 
+    T_actual = (m * np.mean(np.sum(vel**2, axis=1))) / (3 * Kb)
+    T_deseada = slider_t.val
+    vel *= np.sqrt(T_deseada / T_actual)
+    
+    # Calculo de Presion 
+    area = 6 * L_actual**2
+    P_inst = impulso_total / (dt * area)
+    
+    # Guardar datos 
+    historial_T.append(T_deseada)
+    historial_P.append(P_inst)
+    if len(historial_T) > 100:
+        historial_T.pop(0)
+        historial_P.pop(0)
+
+    # Actualizar graficos
+    scat._offsets3d = (pos[:,0], pos[:,1], pos[:,2])
+    ax_sim.set_xlim(0, L_actual)
+    ax_sim.set_ylim(0, L_actual)
+    ax_sim.set_zlim(0, L_actual)
+    
+    ax_temp.clear()
+    ax_temp.plot(historial_T, color='red')
+    ax_temp.set_title("Temperatura T(t)")
+    
+    ax_pres.clear()
+    ax_pres.plot(historial_P, color='blue')
+    ax_pres.set_title("Presión P(t)")
+    
+    return scat,
+
+ani = FuncAnimation(fig, update, frames=200, interval=20, blit=False)
+plt.show()

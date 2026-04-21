@@ -1,0 +1,206 @@
+#---------------------
+# PREGUNTA 2
+# --------------------
+
+import numpy as np
+import matplotlib.pyplot as plt
+import time
+
+#---------------------
+# Inciso (a)
+#---------------------
+
+# Definicion de parámetros
+
+f1 = 5
+f2 = 20
+N = 100
+fs = 100 #Frecuencia de muestre ( cantidad de muestras por segundo)
+delta_t = 1/fs
+t_n = np.arange(N)*delta_t
+x_n = np.sin(2*np.pi*f1* t_n) + 0.5*np.sin(2*np.pi*f2* t_n) 
+
+# Grafico para comprobar las dos frecuencias
+
+#plt.plot(t_n,x_n)
+#plt.xlabel(" Tiempo s")
+#plt.ylabel(" Amplitud ")
+#plt.title(" Señal compuesta")
+#plt.savefig("mi_grafica.png")
+#plt.show()
+
+#-----------------------
+# Inciso (b)
+#-----------------------
+
+X= [] #lista para almacenar los X_k
+
+for k in range (N):
+    x_k = 0.0 + 0.0j
+    for n in range(N):
+        x_k += x_n[n]*np.exp((-2j*np.pi*k*n)/N)
+    X.append(x_k)
+
+X = np.array(X) # Lo pasamos a un array por comodidad
+
+#-----------------------
+# Inciso (c)}
+#-----------------------
+
+magnitud = np.abs(X)
+frecuencias = np.arange(N) * fs/N
+
+#GRAFICAMOS SOLO LA PARTE REAL, YA QUE ESTA NOS ENTREGA LA INFORMACION NECESARIA
+
+
+plt.plot(frecuencias[:N//2],magnitud[:N//2]) 
+plt.xlabel("Frecuencia (Hz)")
+plt.ylabel("|X_k|")
+plt.title(" Expectro de magnitud TDF")
+plt.grid(True)
+plt.show()
+
+
+#-----------------------
+# Inciso (d)
+#-----------------------
+
+
+# Cálculo de la transformada usando el algoritmo de NumPy
+X_fft = np.fft.fft(x_n)
+
+# fftfreq(número_de_puntos, espaciado_temporal)
+frecuencias_fft = np.fft.fftfreq(N, d=delta_t)
+
+#print("Primeros 5 valores de la FFT de NumPy:")
+#print(X_fft[:5])
+
+
+
+#-----------------------
+# Inciso (e)
+#-----------------------
+
+N_tiempos = [10**2, 10**3, 10**4]
+repeticiones = 15
+
+# Lista para guardar los promedios de cada N (En (f) se explica mejor)
+promedio_manual =[]
+promedio_numpy = []
+
+
+for n_prueba in N_tiempos:
+
+    # listas temporales para las 15 iteraciones
+
+    tiempo_n_manual = []
+    tiempo_n_numpy= []
+
+    for i in range(repeticiones):
+
+        #Creamos una señar para un N tiempo específico
+        t_prueba = np.arange(n_prueba) * delta_t
+        x_prueba = np.sin(2*np.pi*f1* t_prueba) + 0.5*np.sin(2*np.pi*f2* t_prueba)
+
+        # Medimos TDF manual
+        inicio_manual = time.time() 
+        # Codigo del inciso (b)
+        X_resultado= [] #
+
+        for k in range (n_prueba):
+            x_k = 0.0 + 0.0j
+            for n in range(n_prueba):
+                x_k += x_prueba[n]*np.exp((-2j*np.pi*k*n)/n_prueba)
+            X_resultado.append(x_k)
+
+        fin_manual = time.time()
+        tiempo_n_manual.append(fin_manual - inicio_manual)
+
+        # Medimos TDF numpy
+
+        inicio_numpy = time.time()
+        resultado_numpy = np.fft.fft(x_prueba)
+        fin_numpy = time.time()
+        tiempo_n_numpy.append(fin_numpy - inicio_numpy)
+
+    # Resultados
+
+    #print ("Para N : ", n_prueba)
+    #print ("El código manual tarda : ", tiempo_manual, "segundos")
+    #print ("Numpy tarda : ", tiempo_numpy, "segundos")
+
+    promedio_manual.append(np.mean(tiempo_n_manual))
+    promedio_numpy.append(np.mean(tiempo_n_numpy))
+
+
+    print("Terminado N =", n_prueba)
+    print("Promedio Manual:", promedio_manual[-1], "segundos")
+
+#-----------------------
+# Inciso (f)
+#-----------------------
+
+
+plt.figure(figsize=(10, 6))
+plt.plot(N_tiempos, promedio_manual, 'o-', label='Manual (Promedio)')
+plt.plot(N_tiempos, promedio_numpy, 's-', label='NumPy (Promedio)')
+plt.xlabel("Tamaño de la señal (N)")
+plt.ylabel("Tiempo promedio (s)")
+plt.title("Comparación de tiempos (Promedio de 15 realizaciones)")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+
+
+# -----------------------
+# Inciso (g) 
+# -----------------------
+
+plt.figure(figsize=(10, 6))
+
+# Usamos loglog para que ambos ejes estén en escala logarítmica
+plt.loglog(N_tiempos, promedio_manual, 'o-', label='DFT Manual (O(N²))')
+plt.loglog(N_tiempos, promedio_numpy, 's-', label='FFT NumPy (O(N log N))')
+
+plt.xlabel("Tamaño de la señal (N) - Escala Log")
+plt.ylabel("Tiempo promedio (s) - Escala Log")
+plt.title("Gráfico Log-Log de Tiempos de Ejecución")
+plt.legend()
+plt.grid(True, which="both", ls="-") # Cuadrícula especial para log-log
+
+# --- Estimación experimental del exponente ---
+# Usamos los dos últimos puntos para calcular la pendiente: 
+# m = (log(y2) - log(y1)) / (log(x2) - log(x1))
+
+pend_manual = (np.log10(promedio_manual[-1]) - np.log10(promedio_manual[-2])) / \
+              (np.log10(N_tiempos[-1]) - np.log10(N_tiempos[-2]))
+
+print("Exponente estimado Manual:", round(pend_manual, 2))
+plt.show()
+
+
+
+# -----------------------
+# Inciso (h) - 
+# -----------------------
+
+print("\n--- Análisis de ventaja competitiva ---")
+
+for i in range(len(N_tiempos)):
+    n = N_tiempos[i]
+    t_m = promedio_manual[i]
+    t_n = promedio_numpy[i]
+    
+    # Calculamos cuántas veces es más rápida la FFT
+    # (Evitamos dividir por cero si el tiempo de numpy fue muy bajo)
+    if t_n > 0:
+        factor = t_m / t_n
+    else:
+        factor = float('inf') 
+
+    print("Para N =", n, "la FFT es", round(factor, 1), "veces más rápida.")
+
+    if factor >= 100:
+        print(">>> ¡Aquí se cumple la condición del inciso (h)!")
+

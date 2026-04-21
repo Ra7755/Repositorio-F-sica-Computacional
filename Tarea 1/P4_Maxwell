@@ -1,0 +1,42 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# --- PARAMETROS ---
+N = 10000  # Usamos más partículas para que el histograma se vea suave
+m = 3.32e-27  # Masa del H2
+Kb = 1.380649e-23  # Constante de Boltzmann 
+T = 300  # Temperatura inicial
+
+# --- 1. GENERACIÓN DE VELOCIDADES ---
+# Generamos componentes vx, vy, vz siguiendo una distribución normal (Gaussiana)
+# La desviación estándar para cada componente es sigma = sqrt(Kb * T / m)
+sigma = np.sqrt(Kb * T / m)
+vx = np.random.normal(0, sigma, N)
+vy = np.random.normal(0, sigma, N)
+vz = np.random.normal(0, sigma, N)
+
+# Calculamos la magnitud de la velocidad (rapidez)
+v = np.sqrt(vx**2 + vy**2 + vz**2)
+
+# --- 2. CURVA TEÓRICA DE MAXWELL-BOLTZMANN ---
+v_axis = np.linspace(0, np.max(v), 500)
+# Formula de la distribución en 3D
+pdf = ( (m / (2 * np.pi * Kb * T))**1.5 ) * (4 * np.pi * v_axis**2) * np.exp(-m * v_axis**2 / (2 * Kb * T))
+
+# --- 3. GRÁFICO ---
+plt.figure(figsize=(10, 6))
+
+# Histograma de las velocidades generadas
+plt.hist(v, bins=50, density=True, color='skyblue', edgecolor='black', alpha=0.7, label='Simulación (N=10000)')
+
+# Curva teórica
+plt.plot(v_axis, pdf, color='red', lw=2, label='Teoría de Maxwell-Boltzmann')
+
+# Formato del gráfico
+plt.title(f'Distribución de Velocidades del $H_2$ a {T}K', fontsize=14)
+plt.xlabel('Velocidad [m/s]', fontsize=12)
+plt.ylabel('Densidad de Probabilidad', fontsize=12)
+plt.legend()
+plt.grid(True, linestyle='--', alpha=0.6)
+
+plt.show()
